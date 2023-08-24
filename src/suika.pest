@@ -1,0 +1,30 @@
+WHITESPACE = _{ " " | "\t" }
+
+name = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+number = @{ ASCII_DIGIT+ }
+float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+
+variable_name = @{ "$" ~ name }
+operator = { "+=" | "%=" | "-=" | "=" }
+number_or_variable = { number | variable_name }
+variable = { variable_name ~ operator ~ number_or_variable }
+
+string = ${ "\"" ~ inner ~ "\"" }
+inner = @{ char* }
+char = {
+    !("\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+func_arg = _{ name | variable_name | string | float }
+function = { name ~ "(" ~ (func_arg ~ ("," ~ func_arg)*)* ~ ")" }
+
+comparator = { "==" | "<=" | ">=" | "<" | ">" | "!=" }
+condition = { variable_name ~ comparator ~ number_or_variable }
+conditional = { "if" ~ condition ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" ~ else_if* ~ else_? }
+else_if = { "elseif" ~ condition ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
+else_ = { "else" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
+
+line = _{ variable | function | conditional }
+file = _{ SOI ~ (line ~ (NEWLINE+ ~ line?)*)* ~ EOI }
