@@ -86,19 +86,37 @@ fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> 
     if var_name == "$RAND" {
         var_name.to_string()
     } else if variables.contains_key(var_name) {
-        format!("${}", variables[var_name])
+        let var_type = &var_name[..1];
+        let name = if var_type == "%" {
+            let c = ((variables[var_name] + 97) as u8) as char;
+            format!("{}", c)
+        } else {
+            format!("{}", variables[var_name])
+        };
+        format!("{}{}", var_type, name)
     } else {
+        let var_type = &var_name[..1];
         let mut max_val = 0;
         let mut found = false;
-        for (_, v) in variables.iter() {
-            if *v >= max_val {
+        for (name, v) in variables.iter() {
+            if *var_type == name[..1] && *v >= max_val {
                 max_val = *v;
                 found = true;
             }
         }
         if found { max_val += 1; }
         variables.insert(var_name.to_string(), max_val);
-        format!("${}", max_val)
+
+        if var_type == "%" {
+            if max_val >= 26 {
+                panic!("There can only be 26 string variables (starting with %)");
+            }
+
+            let c = ((max_val + 97) as u8) as char;
+            format!("%{}", c)
+        } else {
+            format!("${}", max_val)
+        }
     }
 }
 
@@ -110,6 +128,12 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
             let var_name = get_variable_name(variables, &var_name);
             write!(output_file, "@set {} {} {}\n", var_name, inner[1].as_str(), inner[2].as_str())?;
         },
+        Rule::string_variable => {
+            let inner: Vec<_> = pair.into_inner().collect();
+            let var_name = inner[0].as_str();
+            let var_name = get_variable_name(variables, &var_name);
+            write!(output_file, "@set {} = {}\n", var_name, parse_variables(inner[1].as_str().to_string(), variables))?;
+        },
         Rule::EOI => {},
         Rule::function => {
             let mut inner: Vec<_> = pair.into_inner().collect();
@@ -119,7 +143,7 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
                 match inner.len() {
                     1 => write!(output_file, "{}\n", parse_variables(unquote_str(inner[0].as_str()), variables))?,
                     2 => write!(output_file, "*{}*{}\n", parse_variables(unquote_str(inner[0].as_str()), variables), parse_variables(unquote_str(inner[1].as_str()), variables))?,
-                    3 => write!(output_file, "{}\n", parse_variables(unquote_str(inner[0].as_str()), variables))?,
+                    3 => write!(output_file, "*{}*{}*{}\n", parse_variables(unquote_str(inner[0].as_str()), variables), parse_variables(unquote_str(inner[1].as_str()), variables), parse_variables(unquote_str(inner[2].as_str()), variables))?,
                     _ => panic!("Too much arguments given to 'say'."),
                 };
             } else if func_name == "using" {
@@ -268,7 +292,7 @@ fn parse_variables(string: String, variables: &mut HashMap::<String, u32>) -> St
     let chars: Vec<_> = string.chars().collect();
     while index < chars.len() {
         let c = chars[index];
-        if c == '$' {
+        if c == '$' || c == '%' {
             current_var_name.push(c);
             index += 1;
         } else if current_var_name.len() > 0 {

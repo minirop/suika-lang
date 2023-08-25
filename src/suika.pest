@@ -6,9 +6,12 @@ number = { "-"? ~ integer }
 float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
 
 variable_name = @{ "$" ~ name }
+str_variable_name = @{ "%" ~ name }
 operator = { "+=" | "%=" | "-=" | "=" }
 number_or_variable = { number | variable_name }
 variable = { variable_name ~ operator ~ number_or_variable }
+string_or_variable = { string | str_variable_name }
+string_variable = { str_variable_name ~ "=" ~ string_or_variable }
 
 string = ${ "\"" ~ inner ~ "\"" }
 inner = @{ char* }
@@ -18,14 +21,15 @@ char = {
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
-func_arg = _{ name | variable_name | string | float | number }
+func_arg = _{ name | variable_name | str_variable_name | string | float | number }
 function = { name ~ "(" ~ (func_arg ~ ("," ~ func_arg)*)* ~ ")" }
 
 comparator = { "==" | "<=" | ">=" | "<" | ">" | "!=" }
 condition = { variable_name ~ comparator ~ number_or_variable }
-conditional = { "if" ~ condition ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" ~ else_if* ~ else_? }
-else_if = { "elseif" ~ condition ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
+str_condition = { str_variable_name ~ comparator ~ string_or_variable }
+conditional = { "if" ~ (condition | str_condition) ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" ~ else_if* ~ else_? }
+else_if = { "elseif" ~ (condition | str_condition) ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
 else_ = { "else" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
 
-line = _{ variable | function | conditional }
+line = _{ variable | string_variable | function | conditional }
 file = _{ SOI ~ (line ~ (NEWLINE+ ~ line?)*)* ~ EOI }
