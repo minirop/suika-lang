@@ -117,13 +117,13 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
 
             if func_name == "say" {
                 match inner.len() {
-                    1 => write!(output_file, "{}\n", unquote_str(inner[0].as_str()))?,
-                    2 => write!(output_file, "*{}*{}\n", unquote_str(inner[0].as_str()), unquote_str(inner[1].as_str()))?,
-                    3 => write!(output_file, "{}\n", unquote_str(inner[0].as_str()))?,
+                    1 => write!(output_file, "{}\n", parse_variables(unquote_str(inner[0].as_str()), variables))?,
+                    2 => write!(output_file, "*{}*{}\n", parse_variables(unquote_str(inner[0].as_str()), variables), parse_variables(unquote_str(inner[1].as_str()), variables))?,
+                    3 => write!(output_file, "{}\n", parse_variables(unquote_str(inner[0].as_str()), variables))?,
                     _ => panic!("Too much arguments given to 'say'."),
                 };
             } else if func_name == "using" {
-                write!(output_file, "using {}\n", unquote_str(inner[0].as_str()))?
+                write!(output_file, "using {}\n", parse_variables(unquote_str(inner[0].as_str()), variables))?
             } else if func_name == "include" {
                 let included_filename = unquote_str(inner[0].as_str());
                 let included_filename = format!("{}/{}", root_dir, included_filename);
@@ -258,4 +258,41 @@ fn unquote_str(string: &str) -> String {
     }
 
     s
+}
+
+fn parse_variables(string: String, variables: &mut HashMap::<String, u32>) -> String {
+    let mut output_string = String::new();
+
+    let mut current_var_name = String::new();
+    let mut index = 0;
+    let chars: Vec<_> = string.chars().collect();
+    while index < chars.len() {
+        let c = chars[index];
+        if c == '$' {
+            current_var_name.push(c);
+            index += 1;
+        } else if current_var_name.len() > 0 {
+            match c {
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    current_var_name.push(c);
+                    index += 1;
+                },
+                _ => {
+                    let suika_var_name = get_variable_name(variables, &current_var_name);
+                    output_string = format!("{}{}", output_string, suika_var_name);
+                    current_var_name.clear();
+                },
+            };
+        } else {
+            output_string.push(c);
+            index += 1;
+        }
+    }
+
+    if current_var_name.len() > 0 {
+        let suika_var_name = get_variable_name(variables, &current_var_name);
+        output_string = format!("{}{}", output_string, suika_var_name);
+    }
+
+    output_string
 }
