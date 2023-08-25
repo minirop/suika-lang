@@ -23,7 +23,7 @@ if $time_of_day == 0 {
 	say("Everyone is sleeping!")
 }
 
-include("increment.txt")
+using("increment.txt")
 
 choose(LAKE, "Go to the lake", TOWN, "Go to town", STAY, "Stay here")
 
@@ -36,4 +36,5 @@ load("nest.txt")
 ```
 
 For now, everything is a function (will/might change later, especially labels).
-*Not everything is handled. In progress*
+
+There is a special function called `include` which will copy/paste its parameter instead of using `using`. To not include this file in the output, use another extension, like `.inc`, since this software only parses `.ptq` files.

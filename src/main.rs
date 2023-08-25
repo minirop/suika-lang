@@ -38,30 +38,46 @@ fn main() -> std::io::Result<()> {
     let mut variables = HashMap::<String, u32>::new();
     let mut if_handler = IfHandler { if_stack: vec![], if_max: 0, next_id: 0 };
 
-    for path in fs::read_dir(&input_dir).unwrap() {
+    process_directory(&input_dir, &input_dir, &output_dir, &mut variables, &mut if_handler)?;
+
+    Ok(())
+}
+
+fn process_directory(root_dir: &str, input_dir: &str, output_dir: &str, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
+    let full_output_dir = format!("{}{}", output_dir, input_dir.to_string().strip_prefix(root_dir).unwrap());
+    fs::create_dir_all(&full_output_dir)?;
+    for path in fs::read_dir(input_dir).unwrap() {
         let pp = path.unwrap().path();
         let filename = pp.file_stem().unwrap().to_str().unwrap();
-        let extension = pp.extension().unwrap().to_str().unwrap();
 
-        if extension == "ptq" {
+        if pp.is_file() {
+            let extension = pp.extension().unwrap().to_str().unwrap();
+
+            if extension == "ptq" {
+                let p = pp.to_str().unwrap().to_owned();
+                println!("Parsing: {}/{}.{}", input_dir, filename, extension);
+                let data = fs::read_to_string(p)?;
+                let res = SuikaParser::parse(Rule::file, &data);
+                match res {
+                    Ok(pairs) => write_file(input_dir, filename, &full_output_dir, pairs, variables, if_handler)?,
+                    Err(e) => panic!("Can't parse {}:\n{:?}", filename, e),
+                };
+            }
+        } else if pp.is_dir() {
             let p = pp.to_str().unwrap().to_owned();
-            println!("{}.{}", filename, extension);
-            let data = fs::read_to_string(p)?;
-            let res = SuikaParser::parse(Rule::file, &data);
-            match res {
-                Ok(pairs) => write_file(filename, &output_dir, pairs, &mut variables, &mut if_handler)?,
-                Err(e) => panic!("Can't parse {}:\n{:?}", filename, e),
-            };
+            process_directory(root_dir, &p, output_dir, variables, if_handler)?;
+        } else {
+            println!("Unknown file {:?}", pp);
         }
     }
 
     Ok(())
 }
 
-fn write_file(filename: &str, output: &str, pairs: Pairs<'_, Rule>, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
+fn write_file(input_dir: &str, filename: &str, output: &str, pairs: Pairs<'_, Rule>, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
     let mut output_file = File::create(format!("{}/{}.txt", output, filename)).expect("Unable to create file");
     for pair in pairs {
-        write_pair(filename, &mut output_file, pair, variables, if_handler)?;
+        write_pair(input_dir, filename, &mut output_file, pair, variables, if_handler)?;
     }
     Ok(())
 }
@@ -86,7 +102,7 @@ fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> 
     }
 }
 
-fn write_pair(filename: &str, output_file: &mut File, pair: Pair<Rule>, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
+fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair<Rule>, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
     match pair.as_rule() {
         Rule::variable => {
             let inner: Vec<_> = pair.into_inner().collect();
@@ -106,22 +122,46 @@ fn write_pair(filename: &str, output_file: &mut File, pair: Pair<Rule>, variable
                     3 => write!(output_file, "{}\n", unquote_str(inner[0].as_str()))?,
                     _ => panic!("Too much arguments given to 'say'."),
                 };
-            } else if func_name == "include" {
+            } else if func_name == "using" {
                 write!(output_file, "using {}\n", unquote_str(inner[0].as_str()))?
+            } else if func_name == "include" {
+                let included_filename = unquote_str(inner[0].as_str());
+                let included_filename = format!("{}/{}", root_dir, included_filename);
+                let data = fs::read_to_string(&included_filename)?;
+                let pairs = SuikaParser::parse(Rule::file, &data).unwrap();
+                for pair in pairs {
+                    write_pair(root_dir, filename, output_file, pair, variables, if_handler)?;
+                }
+            } else if func_name == "script" {
+                write!(output_file, "wms {}\n", unquote_str(inner[0].as_str()))?
+            } else if func_name == "skip" {
+                let enabled = unquote_str(inner[0].as_str());
+                write!(output_file, "skip {}\n", if enabled == "on" { "enabled" } else { "disabled" })?
             } else {
                 let oname = match func_name {
-                    "bg" | "choose" | "load" => format!("@{}", func_name),
+                    "bg" | "choose" | "load" | "bgm" | "se" | "ichoose"
+                    | "ch" | "chs" | "cha" | "chapter" | "gosub" | "click"
+                    | "return" | "goto" | "gui" | "shake" | "video" | "vol"
+                    | "anime" | "wait" => format!("@{}", func_name),
                     "label" => {
                         let label_name = inner.remove(0).as_str();
                         format!(":{}", label_name)
                     },
                     _ => panic!("Unknown: {}", func_name),
                 };
+                let unquote = match func_name {
+                    "choose" | "ichoose" | "chapter" => false,
+                    _ => true,
+                };
 
                 write!(output_file, "{}", oname)?;
 
                 for i in inner {
-                    write!(output_file, " {}", i.as_str())?;
+                    if unquote {
+                        write!(output_file, " {}", unquote_str(i.as_str()))?;
+                    } else {
+                        write!(output_file, " {}", i.as_str())?;
+                    }
                 }
                 write!(output_file, "\n")?;
             }
@@ -166,7 +206,7 @@ fn write_pair(filename: &str, output_file: &mut File, pair: Pair<Rule>, variable
                     },
                     _ => {},
                 }
-                write_pair(filename, output_file, if_pair, variables, if_handler)?;
+                write_pair(root_dir, filename, output_file, if_pair, variables, if_handler)?;
             }
 
             write!(output_file, ":END_IF_{}_{}\n", filename, next_if)?;
@@ -182,13 +222,13 @@ fn write_pair(filename: &str, output_file: &mut File, pair: Pair<Rule>, variable
             write!(output_file, "@if {} {} {} NEXT_{}_{}\n", left, inverse_condition(operator), right, filename, if_handler.next_id)?;
 
             for if_pair in inner {
-                write_pair(filename, output_file, if_pair, variables, if_handler)?;
+                write_pair(root_dir, filename, output_file, if_pair, variables, if_handler)?;
             }
         },
         Rule::else_ => {
             let inner: Vec<_> = pair.into_inner().collect();
             for if_pair in inner {
-                write_pair(filename, output_file, if_pair, variables, if_handler)?;
+                write_pair(root_dir, filename, output_file, if_pair, variables, if_handler)?;
             }
         },
         _ => println!("{:?}:\n\t{:?}", pair.as_rule(), pair.as_str()),

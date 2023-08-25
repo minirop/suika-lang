@@ -1,7 +1,8 @@
 WHITESPACE = _{ " " | "\t" }
 
 name = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
-number = @{ ASCII_DIGIT+ }
+integer = @{ ASCII_DIGIT+ }
+number = { "-"? ~ integer }
 float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
 
 variable_name = @{ "$" ~ name }
@@ -17,7 +18,7 @@ char = {
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
-func_arg = _{ name | variable_name | string | float }
+func_arg = _{ name | variable_name | string | float | number }
 function = { name ~ "(" ~ (func_arg ~ ("," ~ func_arg)*)* ~ ")" }
 
 comparator = { "==" | "<=" | ">=" | "<" | ">" | "!=" }
