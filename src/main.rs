@@ -83,10 +83,13 @@ fn write_file(input_dir: &str, filename: &str, output: &str, pairs: Pairs<'_, Ru
 }
 
 fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> String {
-    if var_name == "$RAND" {
+    let var_type = &var_name[..1];
+
+    if var_type != "$" && var_type != "%" {
+        var_type.to_string()
+    } else if var_name == "$RAND" {
         var_name.to_string()
     } else if variables.contains_key(var_name) {
-        let var_type = &var_name[..1];
         let name = if var_type == "%" {
             let c = ((variables[var_name] + 97) as u8) as char;
             format!("{}", c)
@@ -195,7 +198,7 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
             let cond: Vec<_> = inner.remove(0).into_inner().collect();
             let left = get_variable_name(variables, cond[0].as_str());
             let operator = cond[1].as_str();
-            let right = cond[2].as_str();
+            let right = get_variable_name(variables, cond[2].as_str());
 
             if_handler.if_max += 1;
             let next_if = if_handler.if_max;
