@@ -12,11 +12,11 @@ use std::fs;
 #[derive(ClapParser, Debug)]
 #[command(author = None, version = None, about = None, long_about = None)]
 struct Args {
-    /// Input directory 
+    /// Input directory
     #[arg(short, long)]
     input: Option<String>,
 
-    /// Output directory 
+    /// Output directory
     #[arg(short, long)]
     output: Option<String>,
 }
@@ -33,8 +33,8 @@ struct IfHandler {
 
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
-    let input_dir = if let Some(input) = args.input { input.to_owned() } else { "./".to_owned() };
-    let output_dir = if let Some(output) = args.output { output.to_owned() } else { "./".to_owned() };
+    let input_dir = if let Some(input) = args.input { input } else { "./".to_string() }.trim_end_matches("/").to_string();
+    let output_dir = if let Some(output) = args.output { output } else { "./".to_string() }.trim_end_matches("/").to_string();
     let mut variables = HashMap::<String, u32>::new();
     let mut if_handler = IfHandler { if_stack: vec![], if_max: 0, next_id: 0 };
 
