@@ -99,15 +99,30 @@ fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> 
         format!("{}{}", var_type, name)
     } else {
         let var_type = &var_name[..1];
+        let var_is_upper = var_name.chars().nth(1).unwrap().is_uppercase();
         let mut max_val = 0;
         let mut found = false;
         for (name, v) in variables.iter() {
-            if *var_type == name[..1] && *v >= max_val {
+            if *var_type != name[..1] {
+                continue;
+            }
+
+            if var_type == "$" {
+                let name_is_upper = name.chars().nth(1).unwrap().is_uppercase();
+
+                if var_is_upper != name_is_upper {
+                    continue;
+                }
+            }
+
+            if *v >= max_val {
                 max_val = *v;
                 found = true;
             }
         }
         if found { max_val += 1; }
+        else if var_is_upper { max_val = 10000; }
+
         variables.insert(var_name.to_string(), max_val);
 
         if var_type == "%" {
