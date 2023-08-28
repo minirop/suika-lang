@@ -86,7 +86,7 @@ fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> 
     let var_type = &var_name[..1];
 
     if var_type != "$" && var_type != "%" {
-        var_type.to_string()
+        var_name.to_string()
     } else if var_name == "$RAND" {
         var_name.to_string()
     } else if variables.contains_key(var_name) {
@@ -256,6 +256,74 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
             let inner: Vec<_> = pair.into_inner().collect();
             for if_pair in inner {
                 write_pair(root_dir, filename, output_file, if_pair, variables, if_handler)?;
+            }
+        },
+        Rule::switch => {
+            let mut inner: Vec<_> = pair.into_inner().collect();
+            let first = inner.remove(0);
+
+            let varname = match first.as_rule() {
+                Rule::variable_name | Rule::str_variable_name => {
+                    first.as_str().to_string()
+                },
+                _ => panic!("Switch statement accepts only variables."),
+            };
+
+            let is_number = &varname[..1] == "$";
+
+            if_handler.if_max += 1;
+            let next_if = if_handler.if_max;
+            if_handler.if_stack.push(next_if);
+
+            let child_count = inner.len();
+            let mut index = 0;
+
+            for pair in inner {
+                assert_eq!(pair.as_rule(), Rule::switch_arm);
+
+                let mut pairs: Vec<_> = pair.into_inner().collect();
+                let first = pairs.remove(0);
+                let type_ok = match first.as_rule() {
+                    Rule::number_or_variable => is_number,
+                    Rule::string_or_variable => !is_number,
+                    _ => {
+                        if is_number {
+                            panic!("Switch arm must be a number or a $variable. Got {:?}.", first);
+                        } else {
+                            panic!("Switch arm must be a string or a %variable. Got {:?}.", first);
+                        }
+                    }
+                };
+                if !type_ok {
+                    if is_number {
+                        panic!("Switch arm must be a number or a $variable. Got a string.");
+                    } else {
+                        panic!("Switch arm must be a string or a %variable. Got a number.");
+                    }
+                }
+
+                let next_id = if_handler.next_id;
+                if_handler.next_id += 1;
+
+                if index > 0 {
+                    write!(output_file, "@goto END_IF_{}_{}\n:NEXT_{}_{}\n", filename, next_if, filename, next_id)?;
+                }
+                write!(output_file, "@if {} {} {} ", varname, "!=", first.as_str())?;
+                if index < child_count - 1 {
+                    write!(output_file, "NEXT_{}_{}\n", filename, if_handler.next_id)?;
+                } else {
+                    write!(output_file, "END_IF_{}_{}\n", filename, next_if)?;
+                }
+
+                for line in pairs {
+                    write_pair(root_dir, filename, output_file, line, variables, if_handler)?;
+                }
+
+                if index == child_count - 1 {
+                    write!(output_file, "END_IF_{}_{}\n", filename, next_if)?;
+                }
+
+                index += 1;
             }
         },
         _ => println!("{:?}:\n\t{:?}", pair.as_rule(), pair.as_str()),

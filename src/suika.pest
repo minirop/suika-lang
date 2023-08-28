@@ -8,9 +8,9 @@ float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
 variable_name = @{ "$" ~ name }
 str_variable_name = @{ "%" ~ name }
 operator = { "+=" | "%=" | "-=" | "=" }
-number_or_variable = { number | variable_name }
+number_or_variable = @{ number | variable_name }
 variable = { variable_name ~ operator ~ number_or_variable }
-string_or_variable = { string | str_variable_name }
+string_or_variable = @{ string | str_variable_name }
 string_variable = { str_variable_name ~ "=" ~ string_or_variable }
 
 string = ${ "\"" ~ inner ~ "\"" }
@@ -31,5 +31,8 @@ conditional = { "if" ~ (condition | str_condition) ~ "{" ~ NEWLINE+ ~ (line ~ NE
 else_if = { "elseif" ~ (condition | str_condition) ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
 else_ = { "else" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
 
-line = _{ variable | string_variable | function | conditional }
+switch_arm = { (number_or_variable | string_or_variable) ~ "=>" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
+switch = { "switch" ~ (variable_name | str_variable_name) ~ "{" ~ NEWLINE+ ~ (switch_arm ~ NEWLINE+)* ~ "}" }
+
+line = _{ variable | string_variable | function | conditional | switch }
 file = _{ SOI ~ (line ~ (NEWLINE+ ~ line?)*)* ~ EOI }
