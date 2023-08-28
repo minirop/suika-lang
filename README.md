@@ -23,6 +23,20 @@ if $time_of_day == 0 {
 	say("Everyone is sleeping!")
 }
 
+%name = "john"
+
+switch %name {
+	"john" => {
+		say("John was here!")
+	}
+	"carl" => {
+		say("John wasn't here.")
+	}
+	_ => {
+		say("who?")
+	}
+}
+
 using("increment.txt")
 
 choose(LAKE, "Go to the lake", TOWN, "Go to town", STAY, "Stay here")

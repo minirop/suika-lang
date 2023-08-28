@@ -261,6 +261,17 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
         Rule::switch => {
             let mut inner: Vec<_> = pair.into_inner().collect();
             let first = inner.remove(0);
+            let mut last = None;
+
+            if let Some(vlast) = inner.last() {
+                if vlast.as_rule() == Rule::switch_arm_else {
+                    last = Some(vlast.clone());
+                }
+            }
+
+            if last.is_some() {
+                inner.remove(inner.len() - 1);
+            }
 
             let varname = match first.as_rule() {
                 Rule::variable_name | Rule::str_variable_name => {
@@ -309,7 +320,7 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
                     write!(output_file, "@goto END_IF_{}_{}\n:NEXT_{}_{}\n", filename, next_if, filename, next_id)?;
                 }
                 write!(output_file, "@if {} {} {} ", varname, "!=", first.as_str())?;
-                if index < child_count - 1 {
+                if index < child_count - 1 || last.is_some() {
                     write!(output_file, "NEXT_{}_{}\n", filename, if_handler.next_id)?;
                 } else {
                     write!(output_file, "END_IF_{}_{}\n", filename, next_if)?;
@@ -319,11 +330,23 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
                     write_pair(root_dir, filename, output_file, line, variables, if_handler)?;
                 }
 
-                if index == child_count - 1 {
+                if index == child_count - 1 && last.is_none() {
                     write!(output_file, "END_IF_{}_{}\n", filename, next_if)?;
                 }
 
                 index += 1;
+            }
+
+            if let Some(last) = last {
+                let pairs: Vec<_> = last.into_inner().collect();
+
+                write!(output_file, "NEXT_{}_{}\n", filename, if_handler.next_id)?;
+
+                for line in pairs {
+                    write_pair(root_dir, filename, output_file, line, variables, if_handler)?;
+                }
+
+                write!(output_file, "END_IF_{}_{}\n", filename, next_if)?;
             }
         },
         _ => println!("{:?}:\n\t{:?}", pair.as_rule(), pair.as_str()),

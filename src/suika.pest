@@ -32,7 +32,8 @@ else_if = { "elseif" ~ (condition | str_condition) ~ "{" ~ NEWLINE+ ~ (line ~ NE
 else_ = { "else" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
 
 switch_arm = { (number_or_variable | string_or_variable) ~ "=>" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
-switch = { "switch" ~ (variable_name | str_variable_name) ~ "{" ~ NEWLINE+ ~ (switch_arm ~ NEWLINE+)* ~ "}" }
+switch_arm_else = { "_" ~ "=>" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
+switch = { "switch" ~ (variable_name | str_variable_name) ~ "{" ~ NEWLINE+ ~ (switch_arm ~ NEWLINE+)* ~ (switch_arm_else ~ NEWLINE+)? ~ "}" }
 
 line = _{ variable | string_variable | function | conditional | switch }
 file = _{ SOI ~ (line ~ (NEWLINE+ ~ line?)*)* ~ EOI }
