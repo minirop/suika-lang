@@ -39,16 +39,16 @@ switch %name {
 	}
 }
 
-using("increment.txt")
+using("increment")
 
 choose("Go to the lake" => LAKE, "Go to town" => TOWN, "Stay here" => STAY)
 
 label(LAKE)
-load("lake.txt")
+load("lake")
 label(TOWN)
-load("town.txt")
+load("town")
 label(STAY)
-load("nest.txt")
+load("nest")
 ```
 
 For now, everything is a function (will/might change later, especially labels).
