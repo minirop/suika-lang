@@ -138,6 +138,8 @@ fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> 
     }
 }
 
+const SCRIPT_FILE_CMDS: [&str; 3] = ["using", "load", "gui"];
+
 fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair<Rule>, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
     match pair.as_rule() {
         Rule::variable => {
@@ -153,6 +155,19 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
             write!(output_file, "@set {} = {}\n", var_name, parse_variables(inner[1].as_str().to_string(), variables))?;
         },
         Rule::EOI => {},
+        Rule::choose => {
+            
+
+            let mut inner: Vec<_> = pair.into_inner().collect();
+            let func_name = inner.remove(0).as_str();
+            write!(output_file, "@{}", unquote_str(&func_name))?;
+
+            for i in inner {
+                let choice: Vec<_> = i.into_inner().collect();
+                write!(output_file, " {} {}", choice[1].as_str(), choice[0].as_str())?;
+            }
+            writeln!(output_file, "")?;
+        },
         Rule::function => {
             let mut inner: Vec<_> = pair.into_inner().collect();
             let func_name = inner.remove(0).as_str();
@@ -198,11 +213,17 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
 
                 write!(output_file, "{}", oname)?;
 
-                for i in inner {
-                    if unquote {
-                        write!(output_file, " {}", unquote_str(i.as_str()))?;
-                    } else {
-                        write!(output_file, " {}", i.as_str())?;
+                if SCRIPT_FILE_CMDS.contains(&func_name) {
+                    for i in inner {
+                        write!(output_file, " {}.txt", i.as_str())?;
+                    }
+                } else {
+                    for i in inner {
+                        if unquote {
+                            write!(output_file, " {}", unquote_str(i.as_str()))?;
+                        } else {
+                            write!(output_file, " {}", i.as_str())?;
+                        }
                     }
                 }
                 write!(output_file, "\n")?;

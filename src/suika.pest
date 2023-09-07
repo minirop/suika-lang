@@ -21,8 +21,13 @@ char = {
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
+choose_or_ichoose = @{ ("choose" | "ichoose") }
+
 func_arg = _{ name | variable_name | str_variable_name | string | float | number }
-function = { name ~ "(" ~ (func_arg ~ ("," ~ func_arg)*)* ~ ")" }
+function = { !choose_or_ichoose ~ name ~ "(" ~ (func_arg ~ ("," ~ func_arg)*)* ~ ")" }
+
+choose_arg = { string ~ "=>" ~ name }
+choose = { choose_or_ichoose ~ "(" ~ (choose_arg ~ ("," ~ choose_arg)*)* ~ ")" }
 
 comparator = { "==" | "<=" | ">=" | "<" | ">" | "!=" }
 condition = { variable_name ~ comparator ~ number_or_variable }
@@ -35,5 +40,5 @@ switch_arm = { (number_or_variable | string_or_variable) ~ "=>" ~ "{" ~ NEWLINE+
 switch_arm_else = { "_" ~ "=>" ~ "{" ~ NEWLINE+ ~ (line ~ NEWLINE+)* ~ "}" }
 switch = { "switch" ~ (variable_name | str_variable_name) ~ "{" ~ NEWLINE+ ~ (switch_arm ~ NEWLINE+)* ~ (switch_arm_else ~ NEWLINE+)? ~ "}" }
 
-line = _{ variable | string_variable | function | conditional | switch }
+line = _{ choose | variable | string_variable | function | conditional | switch }
 file = _{ SOI ~ (line ~ (NEWLINE+ ~ line?)*)* ~ EOI }

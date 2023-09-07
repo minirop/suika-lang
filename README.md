@@ -41,7 +41,7 @@ switch %name {
 
 using("increment.txt")
 
-choose(LAKE, "Go to the lake", TOWN, "Go to town", STAY, "Stay here")
+choose("Go to the lake" => LAKE, "Go to town" => TOWN, "Stay here" => STAY)
 
 label(LAKE)
 load("lake.txt")
