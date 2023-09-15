@@ -215,7 +215,7 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
 
                 if SCRIPT_FILE_CMDS.contains(&func_name) {
                     for i in inner {
-                        write!(output_file, " {}.txt", i.as_str())?;
+                        write!(output_file, " {}.txt", unquote_str(i.as_str()))?;
                     }
                 } else {
                     for i in inner {
