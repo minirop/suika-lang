@@ -138,7 +138,7 @@ fn get_variable_name(variables: &mut HashMap::<String, u32>, var_name: &str) -> 
     }
 }
 
-const SCRIPT_FILE_CMDS: [&str; 3] = ["using", "load", "gui"];
+const SCRIPT_FILE_CMDS: [&str; 2] = ["load", "gui"];
 
 fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair<Rule>, variables: &mut HashMap::<String, u32>, if_handler: &mut IfHandler) -> std::io::Result<()> {
     match pair.as_rule() {
@@ -180,7 +180,7 @@ fn write_pair(root_dir: &str, filename: &str, output_file: &mut File, pair: Pair
                     _ => panic!("Too much arguments given to 'say'."),
                 };
             } else if func_name == "using" {
-                write!(output_file, "using {}\n", parse_variables(unquote_str(inner[0].as_str()), variables))?
+                write!(output_file, "using {}.txt\n", parse_variables(unquote_str(inner[0].as_str()), variables))?
             } else if func_name == "include" {
                 let included_filename = unquote_str(inner[0].as_str());
                 let included_filename = format!("{}/{}", root_dir, included_filename);
